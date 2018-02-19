@@ -13,13 +13,14 @@
 
 const invariant = require('invariant');
 const stableCopy = require('stableCopy');
+const storage = require('react-native-modest-storage');
 
-import type {Variables} from '../util/RelayRuntimeTypes';
-import type {GraphQLResponse} from 'RelayNetworkTypes';
+import type { Variables } from '../util/RelayRuntimeTypes';
+import type { GraphQLResponse } from 'RelayNetworkTypes';
 
 type Response = {
   fetchTime: number,
-  payload: GraphQLResponse,
+  payload: GraphQLResponse
 };
 
 /**
@@ -32,18 +33,13 @@ class RelayQueryResponseCache {
   _size: number;
   _ttl: number;
 
-  constructor({size, ttl}: {size: number, ttl: number}) {
+  constructor({ size, ttl }: { size: number, ttl: number }) {
     invariant(
       size > 0,
-      'RelayQueryResponseCache: Expected the max cache size to be > 0, got ' +
-        '`%s`.',
-      size,
+      'RelayQueryResponseCache: Expected the max cache size to be > 0, got ' + '`%s`.',
+      size
     );
-    invariant(
-      ttl > 0,
-      'RelayQueryResponseCache: Expected the max ttl to be > 0, got `%s`.',
-      ttl,
-    );
+    invariant(ttl > 0, 'RelayQueryResponseCache: Expected the max ttl to be > 0, got `%s`.', ttl);
     this._responses = new Map();
     this._size = size;
     this._ttl = ttl;
@@ -60,7 +56,8 @@ class RelayQueryResponseCache {
         this._responses.delete(key);
       }
     });
-    const response = this._responses.get(cacheKey);
+    // const response = this._responses.get(cacheKey);
+    const response = storage.get(cacheKey);
     return response != null ? response.payload : null;
   }
 
@@ -68,10 +65,12 @@ class RelayQueryResponseCache {
     const fetchTime = Date.now();
     const cacheKey = getCacheKey(queryID, variables);
     this._responses.delete(cacheKey); // deletion resets key ordering
+    storage.remove(cacheKey);
     this._responses.set(cacheKey, {
       fetchTime,
-      payload,
+      payload
     });
+    storage.set(cacheKey, { fetchTime, payload });
     // Purge least-recently updated key when max size reached
     if (this._responses.size > this._size) {
       const firstKey = this._responses.keys().next();
@@ -83,7 +82,7 @@ class RelayQueryResponseCache {
 }
 
 function getCacheKey(queryID: string, variables: Variables): string {
-  return JSON.stringify(stableCopy({queryID, variables}));
+  return JSON.stringify(stableCopy({ queryID, variables }));
 }
 
 /**
